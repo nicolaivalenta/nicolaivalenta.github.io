@@ -2,6 +2,8 @@ backend:
   name: github
   repo: nicolaivalenta/nicolaivalenta.github.io
   branch: main
+  auth_type: pkce
+  app_id: Ov23liHnOx7el6IT208p
 
 media_folder: "public/images/blog"
 public_folder: "/images/blog"
