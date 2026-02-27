@@ -1,0 +1,14 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ParallaxHero from '../components/ParallaxHero.astro';
+---
+
+<BaseLayout title="Nicolai Valenta" description="Philosopher-Entrepreneur. Exploring the intersection of ethics, technology, and institutional design at UT Austin.">
+  <ParallaxHero />
+</BaseLayout>
+
+<style>
+  :global(body:has(.hero)) {
+    overflow: hidden;
+  }
+</style>

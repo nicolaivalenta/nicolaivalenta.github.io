@@ -1,0 +1,527 @@
+---
+
+---
+
+<section class="hero" id="hero">
+  <canvas id="balls-canvas"></canvas>
+  <canvas id="ripple-canvas"></canvas>
+  <div class="hero-overlay" id="hero-overlay">
+    <div class="hero-content">
+      <div class="pfp-wrapper">
+        <img src="/images/pfp.jpg" alt="Nicolai Valenta" class="pfp" />
+      </div>
+      <h1 id="hero-h1">Nicolai Valenta</h1>
+      <p class="tagline" id="tagline">Philosopher-Entrepreneur</p>
+    </div>
+    <div class="hero-cta">
+      <a href="/about/" class="btn btn-primary">About Me</a>
+      <a href="/blog/" class="btn btn-outline">Read Blog</a>
+    </div>
+  </div>
+</section>
+
+<script>
+  const canvas = document.getElementById('balls-canvas') as HTMLCanvasElement;
+  const rippleCanvas = document.getElementById('ripple-canvas') as HTMLCanvasElement;
+  const hero = document.getElementById('hero')!;
+  const taglineEl = document.getElementById('tagline')!;
+  const overlayEl = document.getElementById('hero-overlay')!;
+
+  if (canvas && rippleCanvas) {
+    const ctx = canvas.getContext('2d')!;
+    const rCtx = rippleCanvas.getContext('2d')!;
+    let W = 0, H = 0;
+    let mouseX = -9999, mouseY = -9999;
+    let mouseInCanvas = false;
+
+    // Ring orbit parameters
+    let ringCX = 0, ringCY = 0, ringR = 0;
+    const ORBIT_SPEED = 0.006; // base angular speed for balls on ring
+
+    const COLORS = ['#d97757', '#6a9bcc', '#788c5d'];
+    const BALL_COUNT = 60;
+    const MOUSE_RADIUS = 70;       // reduced from 140 — mouse must be closer
+    const MOUSE_FORCE = 8;
+    const RING_ATTRACT = 0.04;     // pull toward ring surface
+    const TANGENT_PUSH = 0.12;     // push along ring tangent direction
+    const DAMPING = 0.97;
+    const BALL_MIN_R = 8;
+    const BALL_MAX_R = 28;
+
+    interface Ball {
+      x: number; y: number;
+      vx: number; vy: number;
+      r: number;
+      color: string;
+      opacity: number;
+      z: number;
+      orbitAngle: number;   // current angle on ring
+      orbitDir: number;     // 1 or -1 for CW/CCW variety
+    }
+
+    const balls: Ball[] = [];
+
+    // --- Ripple state ---
+    interface Ripple {
+      cx: number; cy: number;
+      radius: number;
+      maxRadius: number;
+      life: number;
+      speed: number;
+    }
+    const ripples: Ripple[] = [];
+    let scrollCooldown = 0;
+
+    function resize() {
+      const rect = hero.getBoundingClientRect();
+      W = rect.width;
+      H = rect.height;
+
+      canvas.width = W * devicePixelRatio;
+      canvas.height = H * devicePixelRatio;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+      rippleCanvas.width = W * devicePixelRatio;
+      rippleCanvas.height = H * devicePixelRatio;
+      rippleCanvas.style.width = W + 'px';
+      rippleCanvas.style.height = H + 'px';
+      rCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+      // Compute ring: encircle the overlay content block
+      computeRing();
+    }
+
+    function computeRing() {
+      const overlayRect = overlayEl.getBoundingClientRect();
+      const heroRect = hero.getBoundingClientRect();
+      // Center of overlay relative to hero
+      ringCX = (overlayRect.left + overlayRect.width / 2) - heroRect.left;
+      ringCY = (overlayRect.top + overlayRect.height / 2) - heroRect.top;
+      // Radius: half the diagonal of the overlay block + padding
+      const halfW = overlayRect.width / 2;
+      const halfH = overlayRect.height / 2;
+      ringR = Math.sqrt(halfW * halfW + halfH * halfH) + 50;
+    }
+
+    function init() {
+      resize();
+      balls.length = 0;
+      for (let i = 0; i < BALL_COUNT; i++) {
+        const z = Math.random();
+        const r = BALL_MIN_R + z * (BALL_MAX_R - BALL_MIN_R);
+        // Start on the ring, evenly distributed
+        const angle = (i / BALL_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+        const dir = Math.random() > 0.5 ? 1 : -1;
+        const x = ringCX + Math.cos(angle) * ringR;
+        const y = ringCY + Math.sin(angle) * ringR;
+        // Give initial tangential velocity so they're already orbiting
+        const speed = ORBIT_SPEED * (0.7 + z * 0.6) * 60; // px/frame approx
+        const vx = -Math.sin(angle) * speed * dir;
+        const vy =  Math.cos(angle) * speed * dir;
+        balls.push({
+          x, y, vx, vy, r,
+          color: COLORS[i % COLORS.length],
+          opacity: 0.15 + z * 0.35,
+          z,
+          orbitAngle: angle,
+          orbitDir: dir,
+        });
+      }
+      balls.sort((a, b) => a.z - b.z);
+    }
+
+    // --- Subtitle legibility ---
+    function updateTaglineColor() {
+      if (!taglineEl) return;
+      const tagRect = taglineEl.getBoundingClientRect();
+      const heroRect = hero.getBoundingClientRect();
+      const relLeft = tagRect.left - heroRect.left;
+      const relTop = tagRect.top - heroRect.top;
+      const tw = tagRect.width;
+      const th = tagRect.height;
+
+      const samples = 12;
+      let totalBrightness = 0;
+      let sampleCount = 0;
+      for (let i = 0; i < samples; i++) {
+        const sx = Math.round((relLeft + (tw * i) / (samples - 1)) * devicePixelRatio);
+        const sy = Math.round((relTop + th / 2) * devicePixelRatio);
+        if (sx >= 0 && sx < canvas.width && sy >= 0 && sy < canvas.height) {
+          const pixel = ctx.getImageData(sx, sy, 1, 1).data;
+          if (pixel[3] > 20) {
+            const brightness = (pixel[0] * 0.299 + pixel[1] * 0.587 + pixel[2] * 0.114);
+            totalBrightness += brightness * (pixel[3] / 255);
+            sampleCount++;
+          }
+        }
+      }
+
+      if (sampleCount > 2) {
+        const avgBright = totalBrightness / sampleCount;
+        const t = Math.max(0, Math.min(1, 1 - avgBright / 200));
+        const r = Math.round(176 + t * (255 - 176));
+        const g = Math.round(174 + t * (255 - 174));
+        const b = Math.round(165 + t * (255 - 165));
+        taglineEl.style.color = `rgb(${r},${g},${b})`;
+      } else {
+        taglineEl.style.color = '';
+      }
+    }
+
+    // --- Ripple rendering ---
+    function drawRipples() {
+      rCtx.clearRect(0, 0, W, H);
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const rip = ripples[i];
+        rip.radius += rip.speed;
+        rip.life = Math.max(0, 1 - rip.radius / rip.maxRadius);
+
+        if (rip.life <= 0) {
+          ripples.splice(i, 1);
+          continue;
+        }
+
+        const alpha = rip.life * 0.35;
+        const ringWidth = 40 + (1 - rip.life) * 60;
+
+        rCtx.beginPath();
+        rCtx.arc(rip.cx, rip.cy, rip.radius, 0, Math.PI * 2);
+        rCtx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
+        rCtx.lineWidth = ringWidth;
+        rCtx.stroke();
+
+        rCtx.beginPath();
+        rCtx.arc(rip.cx, rip.cy, rip.radius, 0, Math.PI * 2);
+        rCtx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        rCtx.lineWidth = 2;
+        rCtx.stroke();
+
+        if (rip.radius > 30) {
+          rCtx.beginPath();
+          rCtx.arc(rip.cx, rip.cy, rip.radius - 20, 0, Math.PI * 2);
+          rCtx.strokeStyle = `rgba(200, 200, 195, ${alpha * 0.3})`;
+          rCtx.lineWidth = ringWidth * 0.5;
+          rCtx.stroke();
+        }
+      }
+
+      if (ripples.length > 0) {
+        let totalDisp = 0;
+        for (const rip of ripples) {
+          totalDisp += rip.life * 3;
+        }
+        const dispX = Math.sin(Date.now() * 0.01) * totalDisp;
+        const dispY = Math.cos(Date.now() * 0.013) * totalDisp * 0.7;
+        overlayEl.style.transform = `translate(${dispX}px, ${dispY}px)`;
+      } else {
+        overlayEl.style.transform = '';
+      }
+    }
+
+    // --- Ripple force on balls (halved) ---
+    function applyRippleForceToBalls() {
+      for (const rip of ripples) {
+        if (rip.life <= 0) continue;
+        for (const b of balls) {
+          const dx = b.x - rip.cx;
+          const dy = b.y - rip.cy;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const ringDist = Math.abs(dist - rip.radius);
+          if (ringDist < 60) {
+            const pushForce = rip.life * 2 * (1 - ringDist / 60);  // halved from 4 to 2
+            b.vx += (dx / dist) * pushForce;
+            b.vy += (dy / dist) * pushForce;
+          }
+        }
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, W, H);
+
+      for (const b of balls) {
+        // --- Ring attractor ---
+        // Vector from ring center to ball
+        const dx = b.x - ringCX;
+        const dy = b.y - ringCY;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        // Radial force: pull toward ring surface (ringR)
+        const radialErr = ringR - dist;
+        const nx = dx / dist;  // unit normal outward
+        const ny = dy / dist;
+        b.vx += nx * radialErr * RING_ATTRACT;
+        b.vy += ny * radialErr * RING_ATTRACT;
+
+        // Tangential force: push along the ring to orbit
+        const tx = -ny * b.orbitDir; // tangent direction
+        const ty =  nx * b.orbitDir;
+        const speed = ORBIT_SPEED * (0.7 + b.z * 0.6);
+        b.vx += tx * TANGENT_PUSH * speed * 10;
+        b.vy += ty * TANGENT_PUSH * speed * 10;
+
+        // Mouse repulsion (tighter radius)
+        if (mouseInCanvas) {
+          const dxM = b.x - mouseX;
+          const dyM = b.y - mouseY;
+          const distM = Math.sqrt(dxM * dxM + dyM * dyM) || 1;
+          if (distM < MOUSE_RADIUS + b.r) {
+            const force = MOUSE_FORCE * (1 - distM / (MOUSE_RADIUS + b.r));
+            b.vx += (dxM / distM) * force;
+            b.vy += (dyM / distM) * force;
+          }
+        }
+
+        b.vx *= DAMPING;
+        b.vy *= DAMPING;
+        b.x += b.vx;
+        b.y += b.vy;
+
+        // Boundary bounce
+        if (b.x - b.r < 0) { b.x = b.r; b.vx *= -0.5; }
+        if (b.x + b.r > W) { b.x = W - b.r; b.vx *= -0.5; }
+        if (b.y - b.r < 0) { b.y = b.r; b.vy *= -0.5; }
+        if (b.y + b.r > H) { b.y = H - b.r; b.vy *= -0.5; }
+
+        // Draw with 3D shading
+        const grad = ctx.createRadialGradient(
+          b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.1,
+          b.x, b.y, b.r
+        );
+        grad.addColorStop(0, b.color + hexOpacity(Math.min(b.opacity + 0.2, 0.7)));
+        grad.addColorStop(0.7, b.color + hexOpacity(b.opacity));
+        grad.addColorStop(1, b.color + hexOpacity(b.opacity * 0.3));
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      applyRippleForceToBalls();
+      drawRipples();
+      updateTaglineColor();
+
+      if (scrollCooldown > 0) scrollCooldown--;
+
+      requestAnimationFrame(animate);
+    }
+
+    function hexOpacity(o: number): string {
+      return Math.round(Math.min(Math.max(o, 0), 1) * 255).toString(16).padStart(2, '0');
+    }
+
+    // --- Mouse events ---
+    hero.addEventListener('mousemove', (e) => {
+      const rect = hero.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+      mouseInCanvas = true;
+    });
+
+    hero.addEventListener('mouseleave', () => {
+      mouseInCanvas = false;
+    });
+
+    hero.addEventListener('touchmove', (e) => {
+      const rect = hero.getBoundingClientRect();
+      const touch = e.touches[0];
+      mouseX = touch.clientX - rect.left;
+      mouseY = touch.clientY - rect.top;
+      mouseInCanvas = true;
+    }, { passive: true });
+
+    hero.addEventListener('touchend', () => {
+      mouseInCanvas = false;
+    });
+
+    // --- Scroll triggers ripple ---
+    function handleScroll(e: WheelEvent) {
+      const rect = hero.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) return;
+
+      e.preventDefault();
+
+      if (scrollCooldown > 0) return;
+      scrollCooldown = 15;
+
+      const maxR = Math.sqrt(W * W + H * H) / 2 + 100;
+      ripples.push({
+        cx: W / 2,
+        cy: H / 2,
+        radius: 0,
+        maxRadius: maxR,
+        life: 1,
+        speed: Math.min(Math.abs(e.deltaY) * 0.15 + 4, 14),
+      });
+    }
+
+    hero.addEventListener('wheel', handleScroll, { passive: false });
+
+    window.addEventListener('resize', () => {
+      resize();
+      computeRing();
+    });
+
+    init();
+    animate();
+  }
+</script>
+
+<style>
+  .hero {
+    position: relative;
+    height: 100vh;
+    min-height: 500px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-light);
+  }
+
+  #balls-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  #ripple-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  .hero-overlay {
+    position: relative;
+    z-index: 3;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    transition: transform 0.05s ease-out;
+    /* Shift up so that h1 baseline sits at vertical center */
+    margin-bottom: 12vh;
+  }
+
+  .hero-content {
+    pointer-events: auto;
+  }
+
+  .pfp-wrapper {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 1.5rem;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--color-light-gray);
+    box-shadow: 0 4px 20px rgba(20, 20, 19, 0.12);
+  }
+
+  .pfp {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  h1 {
+    font-family: var(--font-heading);
+    font-size: 4.5rem;
+    font-weight: 700;
+    color: var(--color-dark);
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.02em;
+  }
+
+  .tagline {
+    font-family: var(--font-body);
+    font-size: 1.35rem;
+    color: var(--color-mid-gray);
+    font-weight: 400;
+    font-style: italic;
+    transition: color 0.15s ease;
+  }
+
+  .hero-cta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    pointer-events: auto;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 0.75rem 1.75rem;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background var(--transition), color var(--transition), transform var(--transition), box-shadow var(--transition);
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(20, 20, 19, 0.15);
+  }
+
+  .btn-primary {
+    background: var(--color-orange);
+    color: var(--color-light);
+  }
+
+  .btn-primary:hover {
+    background: #c4623f;
+    color: var(--color-light);
+  }
+
+  .btn-outline {
+    border: 2px solid var(--color-dark);
+    color: var(--color-dark);
+    background: transparent;
+  }
+
+  .btn-outline:hover {
+    background: var(--color-dark);
+    color: var(--color-light);
+  }
+
+  @media (max-width: 768px) {
+    .hero {
+      height: 100vh;
+    }
+
+    .hero-overlay {
+      margin-bottom: 8vh;
+    }
+
+    .pfp-wrapper {
+      width: 110px;
+      height: 110px;
+      margin-bottom: 1.25rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+    }
+
+    .tagline {
+      font-size: 1.05rem;
+    }
+
+    .hero-cta {
+      flex-direction: column;
+      align-items: center;
+      margin-top: 1.5rem;
+    }
+  }
+</style>

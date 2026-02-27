@@ -1,0 +1,45 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+
+const allProjects = await getCollection('projects');
+const sortedProjects = allProjects.sort((a, b) => {
+  if (a.data.featured && !b.data.featured) return -1;
+  if (!a.data.featured && b.data.featured) return 1;
+  return 0;
+});
+---
+
+<BaseLayout title="Projects - Nicolai Valenta" description="Organizations, ventures, and tools — from student clubs to technical builds.">
+  <main class="page-section">
+    <h1>Projects</h1>
+    <p class="intro">Organizations, ventures, and technical builds.</p>
+
+    <div class="projects-grid">
+      {sortedProjects.map(project => (
+        <ProjectCard
+          title={project.data.title}
+          description={project.data.description}
+          techStack={project.data.techStack}
+          githubUrl={project.data.githubUrl}
+          liveUrl={project.data.liveUrl}
+        />
+      ))}
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 768px) {
+    .projects-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

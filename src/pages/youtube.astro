@@ -1,0 +1,64 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import YouTubeGallery from '../components/YouTubeGallery.astro';
+
+// Fetch videos from YouTube RSS feed at build time
+const CHANNEL_ID = 'UCSwQKmU1-A0gc4HCjFl4hgw';
+const FEED_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
+
+interface Video {
+  id: string;
+  title: string;
+}
+
+let videos: Video[] = [];
+
+try {
+  const res = await fetch(FEED_URL);
+  const xml = await res.text();
+
+  // Parse entries from the Atom XML feed
+  const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
+  let match;
+  while ((match = entryRegex.exec(xml)) !== null) {
+    const entry = match[1];
+    const titleMatch = entry.match(/<title>([\s\S]*?)<\/title>/);
+    const videoIdMatch = entry.match(/<yt:videoId>([\s\S]*?)<\/yt:videoId>/);
+    if (titleMatch && videoIdMatch) {
+      videos.push({
+        id: videoIdMatch[1].trim(),
+        title: titleMatch[1].trim(),
+      });
+    }
+  }
+} catch (e) {
+  console.error('Failed to fetch YouTube feed:', e);
+}
+---
+
+<BaseLayout title="Videos - Nicolai Valenta" description="Video essays, discussions, and explorations of ideas.">
+  <main class="page-section">
+    <h1>Videos</h1>
+    <p class="intro">Video essays, discussions, and explorations of ideas that matter.</p>
+
+    {videos.length > 0 ? (
+      <YouTubeGallery videos={videos} />
+    ) : (
+      <div class="empty-state">
+        <p>No videos yet. Check back soon, or visit the channel on <a href={`https://www.youtube.com/@nicolaivalenta5041`} target="_blank" rel="noopener noreferrer">YouTube</a>.</p>
+      </div>
+    )}
+  </main>
+</BaseLayout>
+
+<style>
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--color-text-muted);
+  }
+
+  .empty-state a {
+    color: var(--color-accent);
+  }
+</style>

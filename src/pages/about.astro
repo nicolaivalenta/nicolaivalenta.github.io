@@ -1,0 +1,237 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="About - Nicolai Valenta" description="Sophomore Philosophy major at UT Austin in the Liberal Arts Honors Program, with minors in Economics and Entrepreneurship.">
+  <main class="about-page">
+    <header class="about-header">
+      <h1>About Me</h1>
+    </header>
+
+    <div class="about-content">
+      <section class="bio">
+        <p class="lead">
+          Sophomore Philosophy major in the Liberal Arts Honors Program at the University of Texas
+          at Austin, pursuing minors in Economics and Entrepreneurship.
+        </p>
+        <p>
+          Drawn to philosophy as a rigorous foundation for thinking about ethics, consciousness,
+          and the long-term trajectory of human society &mdash; particularly as AI and technological
+          change strain existing institutions. I study economics to understand how value flows through
+          markets and governments, and where misaligned incentives produce dysfunction.
+        </p>
+        <p>
+          I believe the most pressing problems facing society sit at the intersection of policy and
+          entrepreneurial thinking, and that durable reform requires both philosophical clarity about
+          what's worth building and the practical knowledge of how institutions actually work.
+        </p>
+      </section>
+
+      <section class="details">
+        <div class="detail-block">
+          <h2>Education</h2>
+          <ul>
+            <li>
+              <strong>The University of Texas at Austin</strong>
+              <span class="date-range">Anticipated Graduation: May 2028</span>
+              <span class="muted">B.A. Philosophy, Minor in Economics | Liberal Arts Honors Program</span>
+              <span class="muted">Minor in Entrepreneurship | McCombs School of Business</span>
+            </li>
+            <li>
+              <strong>Moffett Family Summer Entrepreneurship Academy, UT Austin</strong>
+              <span class="date-range">Summer 2026</span>
+              <span class="muted">8-week intensive program focused on venture creation and applied problem-solving</span>
+            </li>
+            <li>
+              <strong>London School of Economics and Political Science</strong>
+              <span class="date-range">Summer 2025</span>
+              <span class="muted">6-week summer program | Management of Organizations, Behavioral Economics</span>
+            </li>
+            <li>
+              <strong>Jesuit College Preparatory School of Dallas</strong>
+              <span class="date-range">Graduated May 2024</span>
+              <span class="muted">Summa Cum Laude | SAT: 1530/1600 | National Merit Commended Scholar</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="detail-block">
+          <h2>Academic Projects</h2>
+          <ul>
+            <li>
+              <strong>Independent Research: Evaluating the Moral Consistency of AI Systems</strong>
+              <span class="date-range">February 2026 &ndash; Present</span>
+              <span class="role">Department of Philosophy, UT Austin | Supervisor: Dr. Jens J&auml;ger</span>
+              <span class="muted">Designed a study extending a 2023 benchmark on AI moral reasoning to assess consistency across newer models using 1,700+ ethical scenarios. Executing Python-based analysis on university supercomputers, with potential implications for AI governance policy.</span>
+            </li>
+            <li>
+              <strong>Selected Philosophy and Economics Papers</strong>
+              <span class="date-range">August 2024 &ndash; Present</span>
+              <span class="role">College of Liberal Arts, UT Austin</span>
+              <span class="muted">Academic essays exploring ethics, political economy, and institutional design. Topics include critique of Nietzschean morality; evolution of language and consciousness; intrinsic versus instrumental value of human intellect; misinformation and institutional trust; AI and workplace creativity; economic incentives of political polarization.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="detail-block">
+          <h2>Leadership</h2>
+          <ul>
+            <li>
+              <strong>Texas Finance Book Club</strong>
+              <span class="role">Co-Founder &amp; VP of Membership | March 2025 &ndash; Present</span>
+              <span class="muted">Co-founded and lead a structured, reading-based seminar exploring financial history, market institutions, and economic thought. Curate readings, develop discussion frameworks, and facilitate weekly discussions.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="detail-block">
+          <h2>Honors</h2>
+          <ul>
+            <li>
+              <strong>Liberal Arts Honors Essay Award</strong>
+              <span class="date-range">October 2024</span>
+              <span class="muted">Awarded to the top three essays among 130 submitted by students in the Liberal Arts Honors Program. Essay required adopting and defending a contested viewpoint to examine how arguments are constructed under conditions of uncertainty and mistrust.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="detail-block">
+          <h2>Skills</h2>
+          <div class="skill-tags">
+            <span class="skill">Excel</span>
+            <span class="skill">Power BI (Certified)</span>
+            <span class="skill">Python</span>
+            <span class="skill">RStudio</span>
+            <span class="skill">Analytical Writing</span>
+            <span class="skill">Formal Logic</span>
+            <span class="skill">German (Fluent)</span>
+            <span class="skill">English (Native)</span>
+          </div>
+          <div class="interests">
+            <p>DJing, music production; international travel; U.S. presidential history; water polo; science fiction; journaling; P=NP</p>
+          </div>
+        </div>
+
+        <div class="detail-block">
+          <h2>Get in Touch</h2>
+          <p>
+            Reach me at <a href="mailto:nfv@utexas.edu">nfv@utexas.edu</a> or connect on
+            <a href="https://linkedin.com/in/Nicolai-Valenta" target="_blank" rel="noopener noreferrer">LinkedIn</a>.
+          </p>
+        </div>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .about-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+  }
+
+  .about-header h1 {
+    font-family: var(--font-heading);
+    font-size: 3rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .bio {
+    margin-bottom: 3rem;
+  }
+
+  .lead {
+    font-size: 1.25rem;
+    line-height: 1.7;
+    color: var(--color-text);
+    margin-bottom: 1.5rem;
+  }
+
+  .bio p {
+    color: var(--color-text-muted);
+    line-height: 1.7;
+    margin-bottom: 1rem;
+  }
+
+  .detail-block {
+    margin-bottom: 2.5rem;
+  }
+
+  .detail-block h2 {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--color-border);
+  }
+
+  .detail-block ul {
+    list-style: none;
+  }
+
+  .detail-block li {
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+  }
+
+  .detail-block li strong {
+    display: block;
+    font-size: 1.05rem;
+  }
+
+  .date-range {
+    display: block;
+    color: var(--color-orange);
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin: 0.15rem 0 0.25rem;
+  }
+
+  .role {
+    display: block;
+    color: var(--color-blue);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 0.15rem 0 0.25rem;
+  }
+
+  .muted {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .skill-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .skill {
+    background: var(--color-light-gray);
+    color: var(--color-dark);
+    padding: 0.3rem 0.85rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .interests p {
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+  }
+
+  @media (max-width: 768px) {
+    .about-page {
+      padding: 2.5rem 1.25rem;
+    }
+
+    .about-header h1 {
+      font-size: 2.25rem;
+    }
+  }
+</style>

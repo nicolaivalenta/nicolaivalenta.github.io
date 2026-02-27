@@ -1,0 +1,110 @@
+:root {
+  /* Claude/Anthropic Brand Colors - Light Mode */
+  --color-dark: #141413;
+  --color-light: #faf9f5;
+  --color-mid-gray: #b0aea5;
+  --color-light-gray: #e8e6dc;
+
+  --color-orange: #d97757;
+  --color-blue: #6a9bcc;
+  --color-green: #788c5d;
+
+  /* Semantic mapping */
+  --color-text: var(--color-dark);
+  --color-text-muted: #4a4840;
+  --color-background: var(--color-light);
+  --color-background-alt: var(--color-light-gray);
+  --color-accent: var(--color-orange);
+  --color-accent-hover: #c4623f;
+  --color-border: var(--color-light-gray);
+
+  /* Typography */
+  --font-heading: 'Poppins', Arial, sans-serif;
+  --font-body: 'Lora', Georgia, serif;
+
+  --max-width: 1200px;
+  --border-radius: 8px;
+  --transition: 0.2s ease;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.page-section {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 4rem 2rem;
+}
+
+.page-section h1 {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.page-section .intro {
+  font-size: 1.15rem;
+  color: var(--color-text-muted);
+  margin-bottom: 3rem;
+}
+
+@media (max-width: 768px) {
+  .page-section {
+    padding: 2.5rem 1.25rem;
+  }
+
+  .page-section h1 {
+    font-size: 2.25rem;
+  }
+}
