@@ -1,0 +1,346 @@
+---
+---
+<canvas id="viz-canvas"></canvas>
+
+<style>
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+  }
+</style>
+
+<script>
+  const canvas = document.getElementById('viz-canvas') as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d')!;
+
+  // --- Constants ---
+  const BLOB_COUNT = 5;
+  const CONTROL_POINTS = 10;
+  const BG_COLOR = '#141413';
+  const COLORS = {
+    orange: { r: 217, g: 119, b: 87 },
+    blue:   { r: 106, g: 155, b: 204 },
+    green:  { r: 120, g: 140, b: 93 },
+    light:  { r: 250, g: 249, b: 245 },
+    gray:   { r: 232, g: 230, b: 220 },
+    dark:   { r: 20,  g: 20,  b: 19  },
+  };
+
+  // Blob color palettes
+  const PALETTES = [
+    [COLORS.orange, COLORS.light],
+    [COLORS.blue, COLORS.dark],
+    [COLORS.green, COLORS.gray],
+    [COLORS.orange, COLORS.blue],
+    [COLORS.blue, COLORS.green],
+  ];
+
+  // --- Types ---
+  interface Blob {
+    cx: number; cy: number;
+    vx: number; vy: number;
+    baseRadius: number;
+    breathPhase: number;
+    breathSpeed: number;
+    offsets: number[];
+    targets: number[];
+    morphSpeeds: number[];
+    palette: { r: number; g: number; b: number }[];
+    targetPalette: { r: number; g: number; b: number }[];
+    gradAngle: number;
+    gradRotSpeed: number;
+    bassScale: number;
+    midMorph: number;
+    highShimmer: number;
+  }
+
+  interface Sparkle {
+    x: number; y: number;
+    vx: number; vy: number;
+    life: number;
+    maxLife: number;
+    radius: number;
+  }
+
+  // --- State ---
+  let W = 0, H = 0, dpr = 1;
+  let blobs: Blob[] = [];
+  let sparkles: Sparkle[] = [];
+  let frame = 0;
+
+  // --- Resize ---
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // --- Init blobs ---
+  function initBlobs() {
+    const minDim = Math.min(W, H);
+    const positions = [
+      [0.2, 0.25], [0.75, 0.35], [0.3, 0.75], [0.8, 0.7], [0.5, 0.5],
+    ];
+    blobs = [];
+    for (let i = 0; i < BLOB_COUNT; i++) {
+      const offsets: number[] = [];
+      const targets: number[] = [];
+      const morphSpeeds: number[] = [];
+      for (let j = 0; j < CONTROL_POINTS; j++) {
+        const o = (Math.random() - 0.5) * 0.3;
+        offsets.push(o);
+        targets.push((Math.random() - 0.5) * 0.3);
+        morphSpeeds.push(0.001 + Math.random() * 0.002);
+      }
+      blobs.push({
+        cx: positions[i][0],
+        cy: positions[i][1],
+        vx: (Math.random() - 0.5) * 0.15,
+        vy: (Math.random() - 0.5) * 0.15,
+        baseRadius: (0.15 + Math.random() * 0.12) * minDim,
+        breathPhase: Math.random() * Math.PI * 2,
+        breathSpeed: 0.008 + Math.random() * 0.006,
+        offsets,
+        targets,
+        morphSpeeds,
+        palette: [...PALETTES[i]],
+        targetPalette: [...PALETTES[i]],
+        gradAngle: Math.random() * Math.PI * 2,
+        gradRotSpeed: 0.001 + Math.random() * 0.002,
+        bassScale: 0.3 + Math.random() * 0.4,
+        midMorph: 0.5 + Math.random() * 0.5,
+        highShimmer: 0.3 + Math.random() * 0.4,
+      });
+    }
+  }
+
+  // --- Audio data interface ---
+  function getAudioData(): { bass: number; mid: number; high: number } {
+    const mp = (window as any).__musicPlayer;
+    if (!mp?.analyser || !mp.isPlaying) return { bass: 0, mid: 0, high: 0 };
+    const data = mp.freqData;
+    mp.analyser.getByteFrequencyData(data);
+    const avg = (arr: Uint8Array, from: number, to: number) => {
+      let sum = 0;
+      for (let i = from; i < to; i++) sum += arr[i];
+      return sum / (to - from) / 255;
+    };
+    return {
+      bass: avg(data, 0, 10),
+      mid: avg(data, 10, 100),
+      high: avg(data, 100, 256),
+    };
+  }
+
+  // --- Update blob ---
+  function updateBlob(b: Blob, bass: number, mid: number, high: number, dt: number) {
+    // Drift
+    b.cx += b.vx / W;
+    b.cy += b.vy / H;
+
+    // Soft bounce
+    if (b.cx < 0.05 || b.cx > 0.95) b.vx *= -0.8;
+    if (b.cy < 0.05 || b.cy > 0.95) b.vy *= -0.8;
+    b.cx = Math.max(0.02, Math.min(0.98, b.cx));
+    b.cy = Math.max(0.02, Math.min(0.98, b.cy));
+
+    // Breathing
+    b.breathPhase += b.breathSpeed;
+    const breathAmp = 0.05 + bass * b.bassScale * 0.15;
+
+    // Morph control points
+    const morphMult = 1 + mid * b.midMorph * 3;
+    const rangeMult = 1 + mid * 1.5;
+    for (let j = 0; j < CONTROL_POINTS; j++) {
+      const diff = b.targets[j] - b.offsets[j];
+      b.offsets[j] += diff * b.morphSpeeds[j] * morphMult;
+      if (Math.abs(diff) < 0.01) {
+        b.targets[j] = (Math.random() - 0.5) * 0.3 * rangeMult;
+      }
+    }
+
+    // Gradient rotation
+    b.gradAngle += b.gradRotSpeed;
+
+    // Color palette lerp
+    for (let c = 0; c < b.palette.length; c++) {
+      b.palette[c] = {
+        r: b.palette[c].r + (b.targetPalette[c].r - b.palette[c].r) * 0.02,
+        g: b.palette[c].g + (b.targetPalette[c].g - b.palette[c].g) * 0.02,
+        b: b.palette[c].b + (b.targetPalette[c].b - b.palette[c].b) * 0.02,
+      };
+    }
+  }
+
+  // --- Draw blob ---
+  function drawBlob(b: Blob, bass: number, high: number) {
+    const x = b.cx * W;
+    const y = b.cy * H;
+    const breathScale = 1 + Math.sin(b.breathPhase) * (0.05 + bass * b.bassScale * 0.15);
+    const r = b.baseRadius * breathScale * (1 + bass * b.bassScale * 0.25);
+
+    // Brightness boost from highs
+    const brightBoost = high * b.highShimmer * 40;
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Build bezier path
+    ctx.beginPath();
+    const angleStep = (Math.PI * 2) / CONTROL_POINTS;
+    const points: [number, number][] = [];
+    for (let i = 0; i < CONTROL_POINTS; i++) {
+      const angle = i * angleStep;
+      const pr = r * (1 + b.offsets[i]);
+      points.push([Math.cos(angle) * pr, Math.sin(angle) * pr]);
+    }
+
+    // Smooth closed bezier
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 0; i < CONTROL_POINTS; i++) {
+      const curr = points[i];
+      const next = points[(i + 1) % CONTROL_POINTS];
+      const prev = points[(i - 1 + CONTROL_POINTS) % CONTROL_POINTS];
+      const nextNext = points[(i + 2) % CONTROL_POINTS];
+
+      const cp1x = curr[0] + (next[0] - prev[0]) * 0.25;
+      const cp1y = curr[1] + (next[1] - prev[1]) * 0.25;
+      const cp2x = next[0] - (nextNext[0] - curr[0]) * 0.25;
+      const cp2y = next[1] - (nextNext[1] - curr[1]) * 0.25;
+
+      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, next[0], next[1]);
+    }
+    ctx.closePath();
+
+    // Radial gradient fill
+    const c1 = b.palette[0];
+    const c2 = b.palette[1] || b.palette[0];
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.2);
+    grad.addColorStop(0, `rgba(${Math.min(255, c1.r + brightBoost)},${Math.min(255, c1.g + brightBoost)},${Math.min(255, c1.b + brightBoost)},0.6)`);
+    grad.addColorStop(0.5, `rgba(${Math.round((c1.r + c2.r) / 2)},${Math.round((c1.g + c2.g) / 2)},${Math.round((c1.b + c2.b) / 2)},0.35)`);
+    grad.addColorStop(1, `rgba(${c2.r},${c2.g},${c2.b},0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // --- Sparkles ---
+  function spawnSparkles(high: number) {
+    if (high < 0.3 || sparkles.length > 50) return;
+    const count = Math.floor(high * 4);
+    for (let i = 0; i < count; i++) {
+      sparkles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: -0.3 - Math.random() * 0.7,
+        life: 1,
+        maxLife: 60 + Math.random() * 60,
+        radius: 1 + Math.random() * 2,
+      });
+    }
+  }
+
+  function updateAndDrawSparkles() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = sparkles.length - 1; i >= 0; i--) {
+      const s = sparkles[i];
+      s.x += s.vx;
+      s.y += s.vy;
+      s.life -= 1 / s.maxLife;
+      if (s.life <= 0) {
+        sparkles.splice(i, 1);
+        continue;
+      }
+      const alpha = s.life * 0.6;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(250, 249, 245, ${alpha})`;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // --- Track color change listener ---
+  window.addEventListener('music:trackchange', ((e: CustomEvent) => {
+    const accent = e.detail?.colorAccent || 'orange';
+    const accentColor = COLORS[accent as keyof typeof COLORS] || COLORS.orange;
+    // Shift palettes toward the track's accent
+    for (let i = 0; i < blobs.length; i++) {
+      const base = PALETTES[i];
+      blobs[i].targetPalette = [
+        {
+          r: Math.round(base[0].r * 0.4 + accentColor.r * 0.6),
+          g: Math.round(base[0].g * 0.4 + accentColor.g * 0.6),
+          b: Math.round(base[0].b * 0.4 + accentColor.b * 0.6),
+        },
+        base[1],
+      ];
+    }
+  }) as EventListener);
+
+  // --- Animation loop ---
+  function animate() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, W, H);
+
+    const { bass, mid, high } = getAudioData();
+
+    ctx.globalCompositeOperation = 'screen';
+    for (const b of blobs) {
+      updateBlob(b, bass, mid, high, 1);
+      drawBlob(b, bass, high);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    spawnSparkles(high);
+    updateAndDrawSparkles();
+
+    frame++;
+    if (!document.hidden) {
+      requestAnimationFrame(animate);
+    }
+  }
+
+  // Pause when tab hidden
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) requestAnimationFrame(animate);
+  });
+
+  // Reduced motion
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Init
+  resize();
+  initBlobs();
+  if (!prefersReduced) {
+    requestAnimationFrame(animate);
+  } else {
+    // Draw static frame
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'screen';
+    for (const b of blobs) drawBlob(b, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  window.addEventListener('resize', () => {
+    resize();
+    const minDim = Math.min(W, H);
+    for (const b of blobs) {
+      b.baseRadius = (0.15 + Math.random() * 0.12) * minDim;
+    }
+  });
+</script>

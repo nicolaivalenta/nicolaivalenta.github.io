@@ -1,0 +1,29 @@
+[
+  {
+    "id": "ugly-girls-v2",
+    "title": "Ugly Girls V2",
+    "file": "/audio/ugly-girls-v2.mp3",
+    "duration": 128,
+    "bpm": 131,
+    "year": 2026,
+    "colorAccent": "orange"
+  },
+  {
+    "id": "velour",
+    "title": "Velour",
+    "file": "/audio/velour.mp3",
+    "duration": 235,
+    "bpm": 140,
+    "year": 2025,
+    "colorAccent": "blue"
+  },
+  {
+    "id": "crush-remix",
+    "title": "Crush Remix",
+    "file": "/audio/crush-remix.mp3",
+    "duration": 225,
+    "bpm": 132,
+    "year": 2025,
+    "colorAccent": "green"
+  }
+]

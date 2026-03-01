@@ -1,0 +1,37 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import MusicVisualizer from '../components/MusicVisualizer.astro';
+import MusicPlayer from '../components/MusicPlayer.astro';
+import tracks from '../data/tracks.json';
+---
+
+<BaseLayout title="Music — Nicolai Valenta" description="Ambient electronic music compositions. An immersive listening experience.">
+  <main class="music-page">
+    <MusicVisualizer />
+    <MusicPlayer tracks={tracks} />
+  </main>
+</BaseLayout>
+
+<style is:global>
+  body:has(.music-page) {
+    overflow: hidden;
+    background: #141413;
+  }
+  body:has(.music-page) .site-header {
+    background: rgba(20, 20, 19, 0.75);
+    backdrop-filter: blur(8px);
+    border-bottom-color: rgba(176, 174, 165, 0.15);
+  }
+  body:has(.music-page) .site-header .site-logo,
+  body:has(.music-page) .site-header .nav-links a {
+    color: #faf9f5;
+  }
+  body:has(.music-page) .site-header .nav-links a:hover,
+  body:has(.music-page) .site-header .nav-links a.active {
+    color: #d97757;
+    border-bottom-color: #d97757;
+  }
+  body:has(.music-page) .site-footer {
+    display: none;
+  }
+</style>
